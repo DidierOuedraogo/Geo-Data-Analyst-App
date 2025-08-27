@@ -1,0 +1,2249 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geo Data Analyst - Exploration Minière</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 15px;
+        }
+
+        .author-info {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            font-style: italic;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .file-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-left: 5px solid #3498db;
+        }
+
+        .file-section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .file-section h2::before {
+            content: '';
+            width: 20px;
+            height: 20px;
+            background: #3498db;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .upload-area {
+            border: 2px dashed #bdc3c7;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            background: white;
+            transition: all 0.3s;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: #3498db;
+            background: #f8f9fa;
+        }
+
+        .upload-area.dragover {
+            border-color: #2ecc71;
+            background: #e8f5e8;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #bdc3c7;
+            margin-bottom: 15px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+
+        .control-group select,
+        .control-group input {
+            padding: 10px;
+            border: 2px solid #ecf0f1;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .control-group select:focus,
+        .control-group input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .mapping-section {
+            display: none;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #ecf0f1;
+        }
+
+        .mapping-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .filters-section {
+            background: #fff5f5;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #fed7d7;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .filter-group {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .filter-title {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .filter-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .filter-input {
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .btn-remove-filter {
+            background: #e53e3e;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .preview-section {
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #ecf0f1;
+        }
+
+        .preview-table {
+            max-height: 200px;
+            overflow: auto;
+            margin-top: 15px;
+            border: 1px solid #ecf0f1;
+            border-radius: 5px;
+        }
+
+        .preview-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .preview-table th,
+        .preview-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #ecf0f1;
+            font-size: 14px;
+            text-align: left;
+        }
+
+        .preview-table th {
+            background: #f8f9fa;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            font-weight: 600;
+        }
+
+        .auto-detect-info {
+            background: #e8f5e8;
+            border: 1px solid #27ae60;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 15px;
+            color: #2d5016;
+            font-size: 14px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+        }
+
+        .btn-export {
+            background: linear-gradient(135deg, #e67e22, #f39c12);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+        }
+
+        .results-section {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 5px solid;
+        }
+
+        .stats-card.lithology { border-left-color: #e74c3c; }
+        .stats-card.assays { border-left-color: #f39c12; }
+        .stats-card.collar { border-left-color: #27ae60; }
+        .stats-card.survey { border-left-color: #9b59b6; }
+        .stats-card.density { border-left-color: #16a085; }
+
+        .stats-card h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .stats-table th,
+        .stats-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .stats-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .stats-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 10px;
+            padding: 25px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .summary-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+        }
+
+        .summary-item {
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .summary-item .number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .summary-item .label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .success {
+            background: #27ae60;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .filter-summary {
+            background: #e8f5e8;
+            border: 1px solid #27ae60;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            color: #2d5016;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .controls-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌍 Geo Data Analyst</h1>
+            <div class="subtitle">Exploration Minière - Import et Analyse CSV/TXT/Excel</div>
+            <div class="author-info">
+                Auteur: Didier Ouedraogo, P.Geo | Date: <span id="currentDate"></span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Section Lithologie -->
+            <div class="file-section">
+                <h2>📊 Données de Lithologie</h2>
+                <div class="upload-area" onclick="document.getElementById('lithoFile').click()">
+                    <div class="upload-icon">📁</div>
+                    <p>Cliquez ou glissez-déposez votre fichier de lithologie</p>
+                    <small>Colonnes requises: HoleID, From, To, Litho</small>
+                </div>
+                <input type="file" id="lithoFile" class="file-input" accept=".csv,.txt,.xlsx,.xls">
+                
+                <div id="lithoAutoDetect" class="auto-detect-info" style="display:none;"></div>
+
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label>Séparateur:</label>
+                        <select id="lithoSeparator">
+                            <option value="auto">🔍 Détection automatique</option>
+                            <option value=",">Virgule (,)</option>
+                            <option value=";">Point-virgule (;)</option>
+                            <option value="\t">Tabulation</option>
+                            <option value="|">Pipe (|)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Séparateur décimal:</label>
+                        <select id="lithoDecimal">
+                            <option value="auto">🔍 Détection automatique</option>
+                            <option value=".">Point (.)</option>
+                            <option value=",">Virgule (,)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="lithoPreview" class="preview-section" style="display:none;">
+                    <h4>Aperçu des données:</h4>
+                    <div id="lithoPreviewTable" class="preview-table"></div>
+                </div>
+
+                <div id="lithoMapping" class="mapping-section">
+                    <h4>Mappage des colonnes:</h4>
+                    <div class="mapping-grid">
+                        <div class="control-group">
+                            <label>HoleID:</label>
+                            <select id="lithoHoleID">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>From:</label>
+                            <select id="lithoFrom">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>To:</label>
+                            <select id="lithoTo">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Litho:</label>
+                            <select id="lithoLitho">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Colonne optionnelle:</label>
+                            <select id="lithoOptional">
+                                <option value="">Aucune</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="lithoFilters" class="filters-section" style="display:none;">
+                        <h4>Filtres de données:</h4>
+                        <div id="lithoFiltersContainer" class="filters-grid"></div>
+                        <button class="btn btn-secondary" onclick="addFilter('litho')">+ Ajouter un filtre</button>
+                    </div>
+
+                    <button class="btn btn-success" onclick="processLithologyData()">Analyser Lithologie</button>
+                </div>
+            </div>
+
+            <!-- Section Assays -->
+            <div class="file-section">
+                <h2>🧪 Données d'Assays</h2>
+                <div class="upload-area" onclick="document.getElementById('assaysFile').click()">
+                    <div class="upload-icon">📁</div>
+                    <p>Cliquez ou glissez-déposez votre fichier d'assays</p>
+                    <small>Colonnes requises: HoleID, From, To, Teneur</small>
+                </div>
+                <input type="file" id="assaysFile" class="file-input" accept=".csv,.txt,.xlsx,.xls">
+                
+                <div id="assaysAutoDetect" class="auto-detect-info" style="display:none;"></div>
+
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label>Séparateur:</label>
+                        <select id="assaysSeparator">
+                            <option value="auto">🔍 Détection automatique</option>
+                            <option value=",">Virgule (,)</option>
+                            <option value=";">Point-virgule (;)</option>
+                            <option value="\t">Tabulation</option>
+                            <option value="|">Pipe (|)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Séparateur décimal:</label>
+                        <select id="assaysDecimal">
+                            <option value="auto">🔍 Détection automatique</option>
+                            <option value=".">Point (.)</option>
+                            <option value=",">Virgule (,)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="assaysPreview" class="preview-section" style="display:none;">
+                    <h4>Aperçu des données:</h4>
+                    <div id="assaysPreviewTable" class="preview-table"></div>
+                </div>
+
+                <div id="assaysMapping" class="mapping-section">
+                    <h4>Mappage des colonnes:</h4>
+                    <div class="mapping-grid">
+                        <div class="control-group">
+                            <label>HoleID:</label>
+                            <select id="assaysHoleID">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>From:</label>
+                            <select id="assaysFrom">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>To:</label>
+                            <select id="assaysTo">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Teneur:</label>
+                            <select id="assaysTeneur">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Colonne optionnelle:</label>
+                            <select id="assaysOptional">
+                                <option value="">Aucune</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="assaysFilters" class="filters-section" style="display:none;">
+                        <h4>Filtres de données:</h4>
+                        <div id="assaysFiltersContainer" class="filters-grid"></div>
+                        <button class="btn btn-secondary" onclick="addFilter('assays')">+ Ajouter un filtre</button>
+                    </div>
+
+                    <button class="btn btn-success" onclick="processAssaysData()">Analyser Assays</button>
+                </div>
+            </div>
+
+            <!-- Section Collar -->
+            <div class="file-section">
+                <h2>📍 Données de Collar</h2>
+                <div class="upload-area" onclick="document.getElementById('collarFile').click()">
+                    <div class="upload-icon">📁</div>
+                    <p>Cliquez ou glissez-déposez votre fichier de collar</p>
+                    <small>Colonnes requises: HoleID, Easting, Northing, Elevation, TotalDepth</small>
+                </div>
+                <input type="file" id="collarFile" class="file-input" accept=".csv,.txt,.xlsx,.xls">
+                
+                <div id="collarAutoDetect" class="auto-detect-info" style="display:none;"></div>
+
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label>Séparateur:</label>
+                        <select id="collarSeparator">
+                            <option value="auto">🔍 Détection automatique</option>
+                            <option value=",">Virgule (,)</option>
+                            <option value=";">Point-virgule (;)</option>
+                            <option value="\t">Tabulation</option>
+                            <option value="|">Pipe (|)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Séparateur décimal:</label>
+                        <select id="collarDecimal">
+                            <option value="auto">🔍 Détection automatique</option>
+                            <option value=".">Point (.)</option>
+                            <option value=",">Virgule (,)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="collarPreview" class="preview-section" style="display:none;">
+                    <h4>Aperçu des données:</h4>
+                    <div id="collarPreviewTable" class="preview-table"></div>
+                </div>
+
+                <div id="collarMapping" class="mapping-section">
+                    <h4>Mappage des colonnes:</h4>
+                    <div class="mapping-grid">
+                        <div class="control-group">
+                            <label>HoleID:</label>
+                            <select id="collarHoleID">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Easting:</label>
+                            <select id="collarEasting">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Northing:</label>
+                            <select id="collarNorthing">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Elevation:</label>
+                            <select id="collarElevation">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>TotalDepth:</label>
+                            <select id="collarTotalDepth">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Colonne optionnelle:</label>
+                            <select id="collarOptional">
+                                <option value="">Aucune</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="collarFilters" class="filters-section" style="display:none;">
+                        <h4>Filtres de données:</h4>
+                        <div id="collarFiltersContainer" class="filters-grid"></div>
+                        <button class="btn btn-secondary" onclick="addFilter('collar')">+ Ajouter un filtre</button>
+                    </div>
+
+                    <button class="btn btn-success" onclick="processCollarData()">Analyser Collar</button>
+                </div>
+            </div>
+
+            <!-- Section Survey -->
+            <div class="file-section">
+                <h2>🧭 Données de Survey</h2>
+                <div class="upload-area" onclick="document.getElementById('surveyFile').click()">
+                    <div class="upload-icon">📁</div>
+                    <p>Cliquez ou glissez-déposez votre fichier de survey</p>
+                    <small>Colonnes requises: HoleID, Depth, Dip, Azimuth</small>
+                </div>
+                <input type="file" id="surveyFile" class="file-input" accept=".csv,.txt,.xlsx,.xls">
+                
+                <div id="surveyAutoDetect" class="auto-detect-info" style="display:none;"></div>
+
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label>Séparateur:</label>
+                        <select id="surveySeparator">
+                            <option value="auto">🔍 Détection automatique</option>
+                            <option value=",">Virgule (,)</option>
+                            <option value=";">Point-virgule (;)</option>
+                            <option value="\t">Tabulation</option>
+                            <option value="|">Pipe (|)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Séparateur décimal:</label>
+                        <select id="surveyDecimal">
+                            <option value="auto">🔍 Détection automatique</option>
+                            <option value=".">Point (.)</option>
+                            <option value=",">Virgule (,)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="surveyPreview" class="preview-section" style="display:none;">
+                    <h4>Aperçu des données:</h4>
+                    <div id="surveyPreviewTable" class="preview-table"></div>
+                </div>
+
+                <div id="surveyMapping" class="mapping-section">
+                    <h4>Mappage des colonnes:</h4>
+                    <div class="mapping-grid">
+                        <div class="control-group">
+                            <label>HoleID:</label>
+                            <select id="surveyHoleID">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Depth:</label>
+                            <select id="surveyDepth">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Dip:</label>
+                            <select id="surveyDip">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Azimuth:</label>
+                            <select id="surveyAzimuth">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Colonne optionnelle:</label>
+                            <select id="surveyOptional">
+                                <option value="">Aucune</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="surveyFilters" class="filters-section" style="display:none;">
+                        <h4>Filtres de données:</h4>
+                        <div id="surveyFiltersContainer" class="filters-grid"></div>
+                        <button class="btn btn-secondary" onclick="addFilter('survey')">+ Ajouter un filtre</button>
+                    </div>
+
+                    <button class="btn btn-success" onclick="processSurveyData()">Analyser Survey</button>
+                </div>
+            </div>
+
+            <!-- Section Densité -->
+            <div class="file-section">
+                <h2>⚖️ Données de Densité</h2>
+                <div class="upload-area" onclick="document.getElementById('densityFile').click()">
+                    <div class="upload-icon">📁</div>
+                    <p>Cliquez ou glissez-déposez votre fichier de densité</p>
+                    <small>Colonnes requises: HoleID, From, To, Density</small>
+                </div>
+                <input type="file" id="densityFile" class="file-input" accept=".csv,.txt,.xlsx,.xls">
+                
+                <div id="densityAutoDetect" class="auto-detect-info" style="display:none;"></div>
+
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label>Séparateur:</label>
+                        <select id="densitySeparator">
+                            <option value="auto">🔍 Détection automatique</option>
+                            <option value=",">Virgule (,)</option>
+                            <option value=";">Point-virgule (;)</option>
+                            <option value="\t">Tabulation</option>
+                            <option value="|">Pipe (|)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Séparateur décimal:</label>
+                        <select id="densityDecimal">
+                            <option value="auto">🔍 Détection automatique</option>
+                            <option value=".">Point (.)</option>
+                            <option value=",">Virgule (,)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="densityPreview" class="preview-section" style="display:none;">
+                    <h4>Aperçu des données:</h4>
+                    <div id="densityPreviewTable" class="preview-table"></div>
+                </div>
+
+                <div id="densityMapping" class="mapping-section">
+                    <h4>Mappage des colonnes:</h4>
+                    <div class="mapping-grid">
+                        <div class="control-group">
+                            <label>HoleID:</label>
+                            <select id="densityHoleID">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>From:</label>
+                            <select id="densityFrom">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>To:</label>
+                            <select id="densityTo">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Density:</label>
+                            <select id="densityDensity">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Colonne optionnelle:</label>
+                            <select id="densityOptional">
+                                <option value="">Aucune</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="densityFilters" class="filters-section" style="display:none;">
+                        <h4>Filtres de données:</h4>
+                        <div id="densityFiltersContainer" class="filters-grid"></div>
+                        <button class="btn btn-secondary" onclick="addFilter('density')">+ Ajouter un filtre</button>
+                    </div>
+
+                    <button class="btn btn-success" onclick="processDensityData()">Analyser Densité</button>
+                </div>
+            </div>
+
+            <!-- Section Résultats -->
+            <div id="resultsSection" class="results-section">
+                <div class="summary-card">
+                    <h3>📈 Résumé Global</h3>
+                    <div id="globalSummary" class="summary-stats"></div>
+                </div>
+
+                <div class="stats-container">
+                    <div id="lithologyStats" class="stats-card lithology" style="display:none;">
+                        <h3>📊 Statistiques Lithologie</h3>
+                        <div id="lithologyStatsContent"></div>
+                    </div>
+
+                    <div id="assaysStats" class="stats-card assays" style="display:none;">
+                        <h3>🧪 Statistiques Assays</h3>
+                        <div id="assaysStatsContent"></div>
+                    </div>
+
+                    <div id="collarStats" class="stats-card collar" style="display:none;">
+                        <h3>📍 Statistiques Collar</h3>
+                        <div id="collarStatsContent"></div>
+                    </div>
+
+                    <div id="surveyStats" class="stats-card survey" style="display:none;">
+                        <h3>🧭 Statistiques Survey</h3>
+                        <div id="surveyStatsContent"></div>
+                    </div>
+
+                    <div id="densityStats" class="stats-card density" style="display:none;">
+                        <h3>⚖️ Statistiques Densité</h3>
+                        <div id="densityStatsContent"></div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <button class="btn btn-export" onclick="exportToExcel()">📊 Exporter vers Excel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales pour stocker les données
+        let lithologyData = null;
+        let assaysData = null;
+        let collarData = null;
+        let surveyData = null;
+        let densityData = null;
+        
+        // Variables pour stocker les données brutes
+        let rawDataCache = {
+            litho: null,
+            assays: null,
+            collar: null,
+            survey: null,
+            density: null
+        };
+
+        // Variables pour les filtres
+        let filterCounters = {
+            litho: 0,
+            assays: 0,
+            collar: 0,
+            survey: 0,
+            density: 0
+        };
+
+        // Variables pour stocker les paramètres détectés
+        let detectedSettings = {
+            litho: { separator: null, decimal: null },
+            assays: { separator: null, decimal: null },
+            collar: { separator: null, decimal: null },
+            survey: { separator: null, decimal: null },
+            density: { separator: null, decimal: null }
+        };
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('currentDate').textContent = new Date().toLocaleDateString('fr-FR');
+            setupFileHandlers();
+        });
+
+        function formatNumber(num) {
+            if (num === null || num === undefined || isNaN(num)) return '0';
+            return new Intl.NumberFormat('fr-FR').format(num);
+        }
+
+        function formatDecimal(num, decimals = 4) {
+            if (num === null || num === undefined || isNaN(num)) return '0';
+            return new Intl.NumberFormat('fr-FR', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            }).format(num);
+        }
+
+        function detectSeparator(content) {
+            const separators = [',', ';', '\t', '|'];
+            const lines = content.split('\n').slice(0, 5); // Analyse les 5 premières lignes
+            
+            let bestSeparator = ',';
+            let maxColumns = 0;
+            let bestConsistency = 0;
+            
+            separators.forEach(sep => {
+                const columnCounts = lines.map(line => line.split(sep).length);
+                const avgColumns = columnCounts.reduce((a, b) => a + b, 0) / columnCounts.length;
+                const consistency = columnCounts.filter(count => count === columnCounts[0]).length / columnCounts.length;
+                
+                if (avgColumns > maxColumns && consistency > 0.8) {
+                    maxColumns = avgColumns;
+                    bestSeparator = sep;
+                    bestConsistency = consistency;
+                } else if (avgColumns === maxColumns && consistency > bestConsistency) {
+                    bestSeparator = sep;
+                    bestConsistency = consistency;
+                }
+            });
+            
+            return bestSeparator;
+        }
+
+        function detectDecimalSeparator(content, fieldSeparator) {
+            const lines = content.split('\n').slice(1, 10); // Skip header, analyze first 10 data lines
+            let commaCount = 0;
+            let dotCount = 0;
+            
+            lines.forEach(line => {
+                const fields = line.split(fieldSeparator);
+                fields.forEach(field => {
+                    field = field.trim();
+                    // Check if field looks like a number
+                    if (/^\d+[.,]\d+$/.test(field)) {
+                        if (field.includes(',')) commaCount++;
+                        if (field.includes('.')) dotCount++;
+                    }
+                });
+            });
+            
+            // Si plus de virgules que de points dans les nombres, c'est probablement une virgule décimale
+            return commaCount > dotCount ? ',' : '.';
+        }
+
+        function autoDetectFileFormat(content, type) {
+            const detectedSeparator = detectSeparator(content);
+            const detectedDecimal = detectDecimalSeparator(content, detectedSeparator);
+            
+            // Stocker les paramètres détectés
+            detectedSettings[type] = {
+                separator: detectedSeparator,
+                decimal: detectedDecimal
+            };
+            
+            // Mettre à jour les sélecteurs si ils sont en mode auto
+            const separatorSelect = document.getElementById(type + 'Separator');
+            const decimalSelect = document.getElementById(type + 'Decimal');
+            
+            if (separatorSelect.value === 'auto') {
+                // Trouver l'option correspondante et la sélectionner visuellement
+                const separatorName = {
+                    ',': 'Virgule (,)',
+                    ';': 'Point-virgule (;)', 
+                    '\t': 'Tabulation',
+                    '|': 'Pipe (|)'
+                };
+                
+                // Afficher les paramètres détectés
+                const autoDetectDiv = document.getElementById(type + 'AutoDetect');
+                autoDetectDiv.innerHTML = `
+                    🔍 <strong>Détection automatique:</strong> 
+                    Séparateur: ${separatorName[detectedSeparator] || detectedSeparator} | 
+                    Décimal: ${detectedDecimal === ',' ? 'Virgule (,)' : 'Point (.)'}
+                `;
+                autoDetectDiv.style.display = 'block';
+            }
+            
+            return { separator: detectedSeparator, decimal: detectedDecimal };
+        }
+
+        function getEffectiveSeparator(type) {
+            const separatorSelect = document.getElementById(type + 'Separator');
+            if (separatorSelect.value === 'auto') {
+                return detectedSettings[type]?.separator || ',';
+            }
+            return separatorSelect.value === '\\t' ? '\t' : separatorSelect.value;
+        }
+
+        function getEffectiveDecimal(type) {
+            const decimalSelect = document.getElementById(type + 'Decimal');
+            if (decimalSelect.value === 'auto') {
+                return detectedSettings[type]?.decimal || '.';
+            }
+            return decimalSelect.value;
+        }
+
+        function setupFileHandlers() {
+            const fileTypes = ['litho', 'assays', 'collar', 'survey', 'density'];
+            
+            fileTypes.forEach(type => {
+                const fileInput = document.getElementById(type + 'File');
+                const uploadArea = fileInput.parentElement;
+                
+                fileInput.addEventListener('change', function(e) {
+                    if (e.target.files.length > 0) {
+                        handleFileSelect(e, type);
+                    }
+                });
+
+                // Gestionnaires pour les changements de séparateur
+                const separatorSelect = document.getElementById(type + 'Separator');
+                const decimalSelect = document.getElementById(type + 'Decimal');
+                
+                separatorSelect.addEventListener('change', function() {
+                    if (fileInput.files.length > 0) {
+                        // Masquer le message auto-detect si l'utilisateur change manuellement
+                        if (this.value !== 'auto') {
+                            document.getElementById(type + 'AutoDetect').style.display = 'none';
+                        }
+                        handleFileSelect({target: fileInput}, type);
+                    }
+                });
+
+                decimalSelect.addEventListener('change', function() {
+                    if (fileInput.files.length > 0) {
+                        // Masquer le message auto-detect si l'utilisateur change manuellement
+                        if (this.value !== 'auto') {
+                            const autoDetectDiv = document.getElementById(type + 'AutoDetect');
+                            if (autoDetectDiv.style.display !== 'none') {
+                                const currentText = autoDetectDiv.innerHTML;
+                                autoDetectDiv.innerHTML = currentText.replace(/Décimal: [^|]+/, `Décimal: ${this.value === ',' ? 'Virgule (,)' : 'Point (.)'}`);
+                            }
+                        }
+                        handleFileSelect({target: fileInput}, type);
+                    }
+                });
+
+                uploadArea.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    uploadArea.classList.add('dragover');
+                });
+
+                uploadArea.addEventListener('dragleave', function(e) {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                });
+
+                uploadArea.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        fileInput.files = files;
+                        handleFileSelect({target: fileInput}, type);
+                    }
+                });
+            });
+        }
+
+        function handleFileSelect(event, type) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    let data;
+                    
+                    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                        const workbook = XLSX.read(e.target.result, {type: 'array'});
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        data = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+                        
+                        // Pour les fichiers Excel, pas de détection automatique nécessaire
+                        document.getElementById(type + 'AutoDetect').style.display = 'none';
+                    } else {
+                        const content = e.target.result;
+                        
+                        // Détection automatique des paramètres
+                        const detected = autoDetectFileFormat(content, type);
+                        
+                        // Utiliser les paramètres effectifs (détectés ou sélectionnés manuellement)
+                        const effectiveSeparator = getEffectiveSeparator(type);
+                        
+                        const parsed = Papa.parse(content, {
+                            delimiter: effectiveSeparator,
+                            header: false,
+                            skipEmptyLines: true
+                        });
+                        data = parsed.data;
+                    }
+
+                    if (data && data.length > 0) {
+                        rawDataCache[type] = data;
+                        showDataPreview(type, data);
+                        setupColumnMapping(type, data[0]);
+                        showMessage(`Fichier ${type} chargé avec succès! ${formatNumber(data.length)} lignes détectées.`, 'success');
+                    } else {
+                        showMessage(`Erreur lors du chargement du fichier ${type}.`, 'error');
+                    }
+                } catch (error) {
+                    console.error('Erreur lors du traitement du fichier:', error);
+                    showMessage(`Erreur lors du traitement du fichier ${type}: ${error.message}`, 'error');
+                }
+            };
+
+            if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                reader.readAsArrayBuffer(file);
+            } else {
+                reader.readAsText(file);
+            }
+        }
+
+        function showDataPreview(type, data) {
+            const previewSection = document.getElementById(type + 'Preview');
+            const previewTable = document.getElementById(type + 'PreviewTable');
+            
+            if (data.length > 0) {
+                let tableHtml = '<table><thead><tr>';
+                
+                // En-têtes
+                if (data[0]) {
+                    data[0].forEach((header, index) => {
+                        tableHtml += `<th>Col ${index + 1}: ${header || 'Vide'}</th>`;
+                    });
+                }
+                tableHtml += '</tr></thead><tbody>';
+                
+                // Afficher les 5 premières lignes de données
+                for (let i = 1; i < Math.min(6, data.length); i++) {
+                    tableHtml += '<tr>';
+                    if (data[i]) {
+                        data[0].forEach((_, index) => {
+                            tableHtml += `<td>${data[i][index] || ''}</td>`;
+                        });
+                    }
+                    tableHtml += '</tr>';
+                }
+                
+                tableHtml += '</tbody></table>';
+                previewTable.innerHTML = tableHtml;
+                previewSection.style.display = 'block';
+            }
+        }
+
+        function setupColumnMapping(type, headers) {
+            const mappingSection = document.getElementById(type + 'Mapping');
+            mappingSection.style.display = 'block';
+
+            // Définir les colonnes requises pour chaque type
+            const requiredColumns = {
+                'litho': ['HoleID', 'From', 'To', 'Litho'],
+                'assays': ['HoleID', 'From', 'To', 'Teneur'],
+                'collar': ['HoleID', 'Easting', 'Northing', 'Elevation', 'TotalDepth'],
+                'survey': ['HoleID', 'Depth', 'Dip', 'Azimuth'],
+                'density': ['HoleID', 'From', 'To', 'Density']
+            };
+
+            const columns = requiredColumns[type];
+            columns.push('Optional'); // Ajouter la colonne optionnelle
+            
+            columns.forEach(column => {
+                const selectId = type + column;
+                const selectElement = document.getElementById(selectId);
+                
+                if (selectElement) {
+                    selectElement.innerHTML = column === 'Optional' ? '<option value="">Aucune</option>' : '<option value="">Sélectionner...</option>';
+                    
+                    headers.forEach((header, index) => {
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = `Col ${index + 1}: ${header || 'Vide'}`;
+                        
+                        // Auto-mapping basé sur le nom de la colonne
+                        const headerLower = (header || '').toLowerCase();
+                        const columnLower = column.toLowerCase();
+                        
+                        if (column !== 'Optional' && (
+                            headerLower.includes(columnLower) || 
+                            (columnLower === 'holeid' && (headerLower.includes('hole') || headerLower.includes('id'))) ||
+                            (columnLower === 'teneur' && (headerLower.includes('grade') || headerLower.includes('au') || headerLower.includes('cu'))) ||
+                            (columnLower === 'easting' && headerLower.includes('east')) ||
+                            (columnLower === 'northing' && headerLower.includes('north')) ||
+                            (columnLower === 'elevation' && (headerLower.includes('elev') || headerLower.includes('z'))) ||
+                            (columnLower === 'totaldepth' && (headerLower.includes('depth') || headerLower.includes('total'))) ||
+                            (columnLower === 'azimuth' && headerLower.includes('az')) ||
+                            (columnLower === 'density' && (headerLower.includes('density') || headerLower.includes('dens'))))) {
+                            option.selected = true;
+                        }
+                        
+                        selectElement.appendChild(option);
+                    });
+                }
+            });
+
+            // Montrer la section des filtres
+            document.getElementById(type + 'Filters').style.display = 'block';
+            setupFilterOptions(type, headers);
+        }
+
+        function setupFilterOptions(type, headers) {
+            // Reset filter counter
+            filterCounters[type] = 0;
+            const filtersContainer = document.getElementById(type + 'FiltersContainer');
+            filtersContainer.innerHTML = '';
+        }
+
+        function addFilter(type) {
+            const filtersContainer = document.getElementById(type + 'FiltersContainer');
+            const filterId = `${type}_filter_${filterCounters[type]++}`;
+            
+            const filterHtml = `
+                <div class="filter-group" id="${filterId}">
+                    <div class="filter-title">Filtre ${filterCounters[type]}</div>
+                    <div class="filter-controls">
+                        <select class="filter-input" id="${filterId}_column">
+                            <option value="">Choisir colonne...</option>
+                        </select>
+                        <select class="filter-input" id="${filterId}_operator">
+                            <option value="">Opérateur...</option>
+                            <option value="gt">Supérieur à</option>
+                            <option value="lt">Inférieur à</option>
+                            <option value="gte">Supérieur ou égal</option>
+                            <option value="lte">Inférieur ou égal</option>
+                            <option value="eq">Égal à</option>
+                            <option value="ne">Différent de</option>
+                        </select>
+                        <input type="number" class="filter-input" id="${filterId}_value" placeholder="Valeur" step="any">
+                        <button class="btn-remove-filter" onclick="removeFilter('${filterId}')">×</button>
+                    </div>
+                </div>
+            `;
+            
+            filtersContainer.insertAdjacentHTML('beforeend', filterHtml);
+            
+            // Peupler les options de colonnes
+            const columnSelect = document.getElementById(`${filterId}_column`);
+            const headers = rawDataCache[type][0];
+            
+            headers.forEach((header, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${header || 'Col ' + (index + 1)}`;
+                columnSelect.appendChild(option);
+            });
+        }
+
+        function removeFilter(filterId) {
+            const filterElement = document.getElementById(filterId);
+            if (filterElement) {
+                filterElement.remove();
+            }
+        }
+
+        function applyFilters(data, type) {
+            const filtersContainer = document.getElementById(type + 'FiltersContainer');
+            const filters = filtersContainer.querySelectorAll('.filter-group');
+            
+            let filteredData = [...data];
+            let filterSummary = [];
+
+            filters.forEach(filter => {
+                const columnSelect = filter.querySelector('select[id$="_column"]');
+                const operatorSelect = filter.querySelector('select[id$="_operator"]');
+                const valueInput = filter.querySelector('input[id$="_value"]');
+                
+                const columnIndex = parseInt(columnSelect.value);
+                const operator = operatorSelect.value;
+                const filterValue = parseFloat(valueInput.value);
+                
+                if (!isNaN(columnIndex) && operator && !isNaN(filterValue)) {
+                    const columnName = rawDataCache[type][0][columnIndex] || `Col ${columnIndex + 1}`;
+                    const originalCount = filteredData.length;
+                    
+                    filteredData = filteredData.filter(row => {
+                        const cellValue = parseFloat(rawDataCache[type][row.originalIndex + 1][columnIndex]);
+                        if (isNaN(cellValue)) return false;
+                        
+                        switch(operator) {
+                            case 'gt': return cellValue > filterValue;
+                            case 'lt': return cellValue < filterValue;
+                            case 'gte': return cellValue >= filterValue;
+                            case 'lte': return cellValue <= filterValue;
+                            case 'eq': return cellValue === filterValue;
+                            case 'ne': return cellValue !== filterValue;
+                            default: return true;
+                        }
+                    });
+                    
+                    const newCount = filteredData.length;
+                    const removed = originalCount - newCount;
+                    filterSummary.push(`${columnName} ${getOperatorText(operator)} ${formatDecimal(filterValue, 2)}: ${formatNumber(removed)} enregistrements supprimés`);
+                }
+            });
+
+            if (filterSummary.length > 0) {
+                showFilterSummary(filterSummary, data.length, filteredData.length);
+            }
+
+            return filteredData;
+        }
+
+        function getOperatorText(operator) {
+            const operators = {
+                'gt': '>',
+                'lt': '<',
+                'gte': '≥',
+                'lte': '≤',
+                'eq': '=',
+                'ne': '≠'
+            };
+            return operators[operator] || operator;
+        }
+
+        function showFilterSummary(filters, originalCount, filteredCount) {
+            // Supprimer les anciens résumés de filtres
+            const existingSummaries = document.querySelectorAll('.filter-summary');
+            existingSummaries.forEach(summary => summary.remove());
+
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'filter-summary';
+            summaryDiv.innerHTML = `
+                <strong>Filtres appliqués:</strong><br>
+                ${filters.join('<br>')}
+                <br><strong>Résultat:</strong> ${formatNumber(filteredCount)} enregistrements conservés sur ${formatNumber(originalCount)} (${formatNumber(originalCount - filteredCount)} supprimés)
+            `;
+            
+            const mainContent = document.querySelector('.main-content');
+            mainContent.insertBefore(summaryDiv, mainContent.firstChild);
+        }
+
+        function processData(type, requiredColumns) {
+            if (!rawDataCache[type]) {
+                showMessage(`Veuillez d'abord charger un fichier ${type}.`, 'error');
+                return;
+            }
+
+            // Vérifier que toutes les colonnes requises sont mappées
+            let allMapped = true;
+            const mapping = {};
+            
+            requiredColumns.forEach(col => {
+                const selectElement = document.getElementById(type + col);
+                const value = selectElement.value;
+                if (!value) {
+                    allMapped = false;
+                    showMessage(`Veuillez mapper la colonne ${col} pour ${type}.`, 'error');
+                } else {
+                    mapping[col.toLowerCase()] = parseInt(value);
+                }
+            });
+
+            // Ajouter la colonne optionnelle si sélectionnée
+            const optionalSelect = document.getElementById(type + 'Optional');
+            if (optionalSelect && optionalSelect.value) {
+                mapping['optional'] = parseInt(optionalSelect.value);
+            }
+
+            if (!allMapped) {
+                return;
+            }
+
+            try {
+                const rawData = rawDataCache[type];
+                if (rawData && rawData.length > 1) {
+                    let processedData = processRawData(rawData.slice(1), mapping, type);
+                    
+                    // Ajouter les indices originaux pour les filtres
+                    processedData = processedData.map((row, index) => ({
+                        ...row,
+                        originalIndex: index
+                    }));
+                    
+                    // Appliquer les filtres
+                    processedData = applyFilters(processedData, type);
+                    
+                    if (processedData.length === 0) {
+                        showMessage(`Aucune donnée valide trouvée dans le fichier ${type} après application des filtres.`, 'error');
+                        return;
+                    }
+                    
+                    switch(type) {
+                        case 'litho':
+                            lithologyData = processedData;
+                            displayLithologyStats();
+                            break;
+                        case 'assays':
+                            assaysData = processedData;
+                            displayAssaysStats();
+                            break;
+                        case 'collar':
+                            collarData = processedData;
+                            displayCollarStats();
+                            break;
+                        case 'survey':
+                            surveyData = processedData;
+                            displaySurveyStats();
+                            break;
+                        case 'density':
+                            densityData = processedData;
+                            displayDensityStats();
+                            break;
+                    }
+
+                    updateGlobalSummary();
+                    document.getElementById('resultsSection').style.display = 'block';
+                    showMessage(`Données ${type} traitées avec succès! ${formatNumber(processedData.length)} enregistrements valides.`, 'success');
+                } else {
+                    showMessage(`Aucune donnée trouvée dans le fichier ${type}.`, 'error');
+                }
+            } catch (error) {
+                console.error('Erreur lors du traitement:', error);
+                showMessage(`Erreur lors du traitement des données ${type}: ${error.message}`, 'error');
+            }
+        }
+
+        function processRawData(rawData, mapping, type) {
+            const effectiveDecimal = getEffectiveDecimal(type);
+            
+            return rawData.map(row => {
+                const processedRow = {};
+                let hasValidData = false;
+                
+                Object.keys(mapping).forEach(key => {
+                    let value = row[mapping[key]];
+                    
+                    if (value !== undefined && value !== null && value !== '') {
+                        // Conversion des nombres
+                        if (key !== 'holeid' && key !== 'litho' && key !== 'optional') {
+                            if (typeof value === 'string') {
+                                // Remplacer le séparateur décimal si nécessaire
+                                if (effectiveDecimal === ',') {
+                                    value = value.replace(',', '.');
+                                }
+                                // Nettoyer la chaîne (supprimer espaces, caractères non numériques sauf point et moins)
+                                value = value.toString().trim().replace(/[^\d.-]/g, '');
+                            }
+                            value = parseFloat(value);
+                            if (!isNaN(value)) {
+                                hasValidData = true;
+                            }
+                        } else {
+                            // Pour les chaînes de caractères
+                            value = value.toString().trim();
+                            if (value !== '') {
+                                hasValidData = true;
+                            }
+                        }
+                    }
+                    
+                    processedRow[key] = value;
+                });
+                
+                return hasValidData ? processedRow : null;
+            }).filter(row => row !== null);
+        }
+
+        function processLithologyData() {
+            processData('litho', ['HoleID', 'From', 'To', 'Litho']);
+        }
+
+        function processAssaysData() {
+            processData('assays', ['HoleID', 'From', 'To', 'Teneur']);
+        }
+
+        function processCollarData() {
+            processData('collar', ['HoleID', 'Easting', 'Northing', 'Elevation', 'TotalDepth']);
+        }
+
+        function processSurveyData() {
+            processData('survey', ['HoleID', 'Depth', 'Dip', 'Azimuth']);
+        }
+
+        function processDensityData() {
+            processData('density', ['HoleID', 'From', 'To', 'Density']);
+        }
+
+        function displayLithologyStats() {
+            if (!lithologyData) return;
+
+            const uniqueHoles = [...new Set(lithologyData.map(row => row.holeid).filter(id => id))].length;
+            
+            // Calculer les statistiques de lithologie
+            const lithologyLengths = {};
+            const uniqueLithologies = new Set();
+            
+            lithologyData.forEach(row => {
+                if (row.litho && !isNaN(row.from) && !isNaN(row.to)) {
+                    const length = row.to - row.from;
+                    const litho = row.litho.toString().trim();
+                    uniqueLithologies.add(litho);
+                    
+                    if (!lithologyLengths[litho]) {
+                        lithologyLengths[litho] = 0;
+                    }
+                    lithologyLengths[litho] += length;
+                }
+            });
+
+            // Trier les lithologies par longueur totale (descendant) et prendre les 5 premières
+            const sortedLithologies = Object.entries(lithologyLengths)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 5);
+
+            let topLithologiesHtml = '';
+            if (sortedLithologies.length > 0) {
+                topLithologiesHtml = `
+                    <h4 style="margin-top: 20px; margin-bottom: 10px;">Top 5 Lithologies par longueur totale:</h4>
+                    <table class="stats-table">
+                        <tr>
+                            <th>Lithologie</th>
+                            <th>Longueur totale (m)</th>
+                        </tr>
+                `;
+                
+                sortedLithologies.forEach(([litho, length]) => {
+                    topLithologiesHtml += `
+                        <tr>
+                            <td>${litho}</td>
+                            <td>${formatDecimal(length, 2)}</td>
+                        </tr>
+                    `;
+                });
+                
+                topLithologiesHtml += '</table>';
+            }
+            
+            const statsHtml = `
+                <table class="stats-table">
+                    <tr>
+                        <th>Métrique</th>
+                        <th>Valeur</th>
+                    </tr>
+                    <tr>
+                        <td>Nombre de HoleID uniques</td>
+                        <td>${formatNumber(uniqueHoles)}</td>
+                    </tr>
+                    <tr>
+                        <td>Nombre de lithologies uniques</td>
+                        <td>${formatNumber(uniqueLithologies.size)}</td>
+                    </tr>
+                    <tr>
+                        <td>Nombre total d'échantillons</td>
+                        <td>${formatNumber(lithologyData.length)}</td>
+                    </tr>
+                </table>
+                ${topLithologiesHtml}
+            `;
+
+            document.getElementById('lithologyStatsContent').innerHTML = statsHtml;
+            document.getElementById('lithologyStats').style.display = 'block';
+        }
+
+        function displayAssaysStats() {
+            if (!assaysData) return;
+
+            const uniqueHoles = [...new Set(assaysData.map(row => row.holeid).filter(id => id))].length;
+            const teneurs = assaysData.map(row => row.teneur).filter(val => !isNaN(val) && val !== null && val !== undefined);
+            
+            if (teneurs.length === 0) {
+                showMessage('Aucune donnée de teneur valide trouvée.', 'error');
+                return;
+            }
+            
+            const stats = calculateAdvancedStats(teneurs);
+
+            const statsHtml = `
+                <table class="stats-table">
+                    <tr>
+                        <th>Métrique</th>
+                        <th>Valeur</th>
+                    </tr>
+                    <tr>
+                        <td>Nombre de HoleID uniques</td>
+                        <td>${formatNumber(uniqueHoles)}</td>
+                    </tr>
+                    <tr>
+                        <td>Nombre d'échantillons</td>
+                        <td>${formatNumber(stats.count)}</td>
+                    </tr>
+                    <tr>
+                        <td>Minimum</td>
+                        <td>${formatDecimal(stats.min)}</td>
+                    </tr>
+                    <tr>
+                        <td>Maximum</td>
+                        <td>${formatDecimal(stats.max)}</td>
+                    </tr>
+                    <tr>
+                        <td>Moyenne</td>
+                        <td>${formatDecimal(stats.mean)}</td>
+                    </tr>
+                    <tr>
+                        <td>Médiane</td>
+                        <td>${formatDecimal(stats.median)}</td>
+                    </tr>
+                    <tr>
+                        <td>Variance</td>
+                        <td>${formatDecimal(stats.variance, 6)}</td>
+                    </tr>
+                    <tr>
+                        <td>Écart Type</td>
+                        <td>${formatDecimal(stats.stdDev)}</td>
+                    </tr>
+                    <tr>
+                        <td>Coefficient de Variation</td>
+                        <td>${formatDecimal(stats.cv, 4)}</td>
+                    </tr>
+                    <tr>
+                        <td>Percentile 90</td>
+                        <td>${formatDecimal(stats.p90)}</td>
+                    </tr>
+                    <tr>
+                        <td>Percentile 95</td>
+                        <td>${formatDecimal(stats.p95)}</td>
+                    </tr>
+                    <tr>
+                        <td>Percentile 98</td>
+                        <td>${formatDecimal(stats.p98)}</td>
+                    </tr>
+                </table>
+            `;
+
+            document.getElementById('assaysStatsContent').innerHTML = statsHtml;
+            document.getElementById('assaysStats').style.display = 'block';
+        }
+
+        function displayDensityStats() {
+            if (!densityData) return;
+
+            const uniqueHoles = [...new Set(densityData.map(row => row.holeid).filter(id => id))].length;
+            const densities = densityData.map(row => row.density).filter(val => !isNaN(val) && val !== null && val !== undefined);
+            
+            if (densities.length === 0) {
+                showMessage('Aucune donnée de densité valide trouvée.', 'error');
+                return;
+            }
+            
+            const stats = calculateAdvancedStats(densities);
+
+            const statsHtml = `
+                <table class="stats-table">
+                    <tr>
+                        <th>Métrique</th>
+                        <th>Valeur</th>
+                    </tr>
+                    <tr>
+                        <td>Nombre de HoleID uniques</td>
+                        <td>${formatNumber(uniqueHoles)}</td>
+                    </tr>
+                    <tr>
+                        <td>Nombre d'échantillons</td>
+                        <td>${formatNumber(stats.count)}</td>
+                    </tr>
+                    <tr>
+                        <td>Minimum</td>
+                        <td>${formatDecimal(stats.min)}</td>
+                    </tr>
+                    <tr>
+                        <td>Maximum</td>
+                        <td>${formatDecimal(stats.max)}</td>
+                    </tr>
+                    <tr>
+                        <td>Moyenne</td>
+                        <td>${formatDecimal(stats.mean)}</td>
+                    </tr>
+                    <tr>
+                        <td>Médiane</td>
+                        <td>${formatDecimal(stats.median)}</td>
+                    </tr>
+                    <tr>
+                        <td>Variance</td>
+                        <td>${formatDecimal(stats.variance, 6)}</td>
+                    </tr>
+                    <tr>
+                        <td>Écart Type</td>
+                        <td>${formatDecimal(stats.stdDev)}</td>
+                    </tr>
+                    <tr>
+                        <td>Coefficient de Variation</td>
+                        <td>${formatDecimal(stats.cv, 4)}</td>
+                    </tr>
+                    <tr>
+                        <td>Percentile 90</td>
+                        <td>${formatDecimal(stats.p90)}</td>
+                    </tr>
+                    <tr>
+                        <td>Percentile 95</td>
+                        <td>${formatDecimal(stats.p95)}</td>
+                    </tr>
+                    <tr>
+                        <td>Percentile 98</td>
+                        <td>${formatDecimal(stats.p98)}</td>
+                    </tr>
+                </table>
+            `;
+
+            document.getElementById('densityStatsContent').innerHTML = statsHtml;
+            document.getElementById('densityStats').style.display = 'block';
+        }
+
+        function displayCollarStats() {
+            if (!collarData) return;
+
+            const uniqueHoles = [...new Set(collarData.map(row => row.holeid).filter(id => id))].length;
+            
+            const easting = collarData.map(row => row.easting).filter(val => !isNaN(val) && val !== null);
+            const northing = collarData.map(row => row.northing).filter(val => !isNaN(val) && val !== null);
+            const elevation = collarData.map(row => row.elevation).filter(val => !isNaN(val) && val !== null);
+            const totalDepth = collarData.map(row => row.totaldepth).filter(val => !isNaN(val) && val !== null);
+
+            const eastingStats = calculateStats(easting);
+            const northingStats = calculateStats(northing);
+            const elevationStats = calculateStats(elevation);
+            const totalDepthStats = calculateStats(totalDepth);
+            const sumTotalDepth = totalDepth.reduce((sum, val) => sum + val, 0);
+
+            // Calculer les étendues
+            const eastingRange = eastingStats.max - eastingStats.min;
+            const northingRange = northingStats.max - northingStats.min;
+            const elevationRange = elevationStats.max - elevationStats.min;
+            const totalDepthRange = totalDepthStats.max - totalDepthStats.min;
+
+            const statsHtml = `
+                <table class="stats-table">
+                    <tr>
+                        <th>Métrique</th>
+                        <th>Easting</th>
+                        <th>Northing</th>
+                        <th>Elevation</th>
+                        <th>TotalDepth</th>
+                    </tr>
+                    <tr>
+                        <td>Minimum</td>
+                        <td>${formatDecimal(eastingStats.min, 2)}</td>
+                        <td>${formatDecimal(northingStats.min, 2)}</td>
+                        <td>${formatDecimal(elevationStats.min, 2)}</td>
+                        <td>${formatDecimal(totalDepthStats.min, 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Maximum</td>
+                        <td>${formatDecimal(eastingStats.max, 2)}</td>
+                        <td>${formatDecimal(northingStats.max, 2)}</td>
+                        <td>${formatDecimal(elevationStats.max, 2)}</td>
+                        <td>${formatDecimal(totalDepthStats.max, 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Étendue</td>
+                        <td>${formatDecimal(eastingRange, 2)}</td>
+                        <td>${formatDecimal(northingRange, 2)}</td>
+                        <td>${formatDecimal(elevationRange, 2)}</td>
+                        <td>${formatDecimal(totalDepthRange, 2)}</td>
+                    </tr>
+                </table>
+                <table class="stats-table">
+                    <tr>
+                        <th>Métrique</th>
+                        <th>Valeur</th>
+                    </tr>
+                    <tr>
+                        <td>Nombre de HoleID uniques</td>
+                        <td>${formatNumber(uniqueHoles)}</td>
+                    </tr>
+                    <tr>
+                        <td>Somme TotalDepth</td>
+                        <td>${formatDecimal(sumTotalDepth, 2)} m</td>
+                    </tr>
+                </table>
+            `;
+
+            document.getElementById('collarStatsContent').innerHTML = statsHtml;
+            document.getElementById('collarStats').style.display = 'block';
+        }
+
+        function displaySurveyStats() {
+            if (!surveyData) return;
+
+            const uniqueHoles = [...new Set(surveyData.map(row => row.holeid).filter(id => id))].length;
+            
+            const statsHtml = `
+                <table class="stats-table">
+                    <tr>
+                        <th>Métrique</th>
+                        <th>Valeur</th>
+                    </tr>
+                    <tr>
+                        <td>Nombre de HoleID uniques</td>
+                        <td>${formatNumber(uniqueHoles)}</td>
+                    </tr>
+                    <tr>
+                        <td>Nombre total de mesures</td>
+                        <td>${formatNumber(surveyData.length)}</td>
+                    </tr>
+                </table>
+            `;
+
+            document.getElementById('surveyStatsContent').innerHTML = statsHtml;
+            document.getElementById('surveyStats').style.display = 'block';
+        }
+
+        function calculateStats(values) {
+            if (values.length === 0) return { min: 0, max: 0, mean: 0, median: 0, variance: 0, stdDev: 0, count: 0 };
+
+            const sorted = [...values].sort((a, b) => a - b);
+            const min = sorted[0];
+            const max = sorted[sorted.length - 1];
+            const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+            
+            const median = sorted.length % 2 === 0 
+                ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+                : sorted[Math.floor(sorted.length / 2)];
+            
+            const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+            const stdDev = Math.sqrt(variance);
+
+            return { min, max, mean, median, variance, stdDev, count: values.length };
+        }
+
+        function calculateAdvancedStats(values) {
+            const basicStats = calculateStats(values);
+            
+            // Coefficient de variation (sans pourcentage)
+            const cv = basicStats.mean !== 0 ? basicStats.stdDev / basicStats.mean : 0;
+            
+            // Percentiles
+            const sorted = [...values].sort((a, b) => a - b);
+            const p90 = percentile(sorted, 90);
+            const p95 = percentile(sorted, 95);
+            const p98 = percentile(sorted, 98);
+            
+            return {
+                ...basicStats,
+                cv,
+                p90,
+                p95,
+                p98
+            };
+        }
+
+        function percentile(sortedArray, p) {
+            const index = (p / 100) * (sortedArray.length - 1);
+            const lower = Math.floor(index);
+            const upper = Math.ceil(index);
+            const weight = index % 1;
+            
+            if (upper >= sortedArray.length) return sortedArray[sortedArray.length - 1];
+            
+            return sortedArray[lower] * (1 - weight) + sortedArray[upper] * weight;
+        }
+
+        function updateGlobalSummary() {
+            let totalHoles = new Set();
+            let summaryItems = [];
+
+            if (lithologyData) {
+                lithologyData.forEach(row => {
+                    if (row.holeid) totalHoles.add(row.holeid);
+                });
+                summaryItems.push({
+                    number: formatNumber(lithologyData.length),
+                    label: 'Échantillons Lithologie'
+                });
+            }
+
+            if (assaysData) {
+                assaysData.forEach(row => {
+                    if (row.holeid) totalHoles.add(row.holeid);
+                });
+                summaryItems.push({
+                    number: formatNumber(assaysData.length),
+                    label: 'Échantillons Assays'
+                });
+            }
+
+            if (collarData) {
+                collarData.forEach(row => {
+                    if (row.holeid) totalHoles.add(row.holeid);
+                });
+                const totalDepth = collarData.reduce((sum, row) => sum + (row.totaldepth || 0), 0);
+                summaryItems.push({
+                    number: formatNumber(Math.round(totalDepth)) + 'm',
+                    label: 'Profondeur Totale'
+                });
+            }
+
+            if (surveyData) {
+                surveyData.forEach(row => {
+                    if (row.holeid) totalHoles.add(row.holeid);
+                });
+                summaryItems.push({
+                    number: formatNumber(surveyData.length),
+                    label: 'Mesures Survey'
+                });
+            }
+
+            if (densityData) {
+                densityData.forEach(row => {
+                    if (row.holeid) totalHoles.add(row.holeid);
+                });
+                summaryItems.push({
+                    number: formatNumber(densityData.length),
+                    label: 'Mesures Densité'
+                });
+            }
+
+            summaryItems.unshift({
+                number: formatNumber(totalHoles.size),
+                label: 'HoleID Uniques'
+            });
+
+            const summaryHtml = summaryItems.map(item => `
+                <div class="summary-item">
+                    <div class="number">${item.number}</div>
+                    <div class="label">${item.label}</div>
+                </div>
+            `).join('');
+
+            document.getElementById('globalSummary').innerHTML = summaryHtml;
+        }
+
+        function exportToExcel() {
+            if (!lithologyData && !assaysData && !collarData && !surveyData && !densityData) {
+                showMessage('Aucune donnée à exporter. Veuillez d\'abord traiter des fichiers.', 'error');
+                return;
+            }
+
+            try {
+                const wb = XLSX.utils.book_new();
+
+                // Résumé global
+                const summaryData = [
+                    ['GEO DATA ANALYST - EXPLORATION MINIÈRE'],
+                    ['Auteur: Didier Ouedraogo, P.Geo'],
+                    ['Date: ' + new Date().toLocaleDateString('fr-FR')],
+                    [''],
+                    ['RÉSUMÉ GLOBAL']
+                ];
+
+                let totalHoles = new Set();
+                if (lithologyData) lithologyData.forEach(row => {
+                    if (row.holeid) totalHoles.add(row.holeid);
+                });
+                if (assaysData) assaysData.forEach(row => {
+                    if (row.holeid) totalHoles.add(row.holeid);
+                });
+                if (collarData) collarData.forEach(row => {
+                    if (row.holeid) totalHoles.add(row.holeid);
+                });
+                if (surveyData) surveyData.forEach(row => {
+                    if (row.holeid) totalHoles.add(row.holeid);
+                });
+                if (densityData) densityData.forEach(row => {
+                    if (row.holeid) totalHoles.add(row.holeid);
+                });
+
+                summaryData.push(['HoleID Uniques', totalHoles.size]);
+                if (lithologyData) summaryData.push(['Échantillons Lithologie', lithologyData.length]);
+                if (assaysData) summaryData.push(['Échantillons Assays', assaysData.length]);
+                if (collarData) {
+                    const totalDepth = collarData.reduce((sum, row) => sum + (row.totaldepth || 0), 0);
+                    summaryData.push(['Profondeur Totale (m)', totalDepth.toFixed(2)]);
+                }
+                if (surveyData) summaryData.push(['Mesures Survey', surveyData.length]);
+                if (densityData) summaryData.push(['Mesures Densité', densityData.length]);
+
+                const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+                XLSX.utils.book_append_sheet(wb, summaryWs, 'Résumé');
+
+                // Statistiques détaillées pour Lithologie
+                if (lithologyData) {
+                    const uniqueHoles = [...new Set(lithologyData.map(row => row.holeid).filter(id => id))].length;
+                    
+                    // Calculer les statistiques de lithologie
+                    const lithologyLengths = {};
+                    const uniqueLithologies = new Set();
+                    
+                    lithologyData.forEach(row => {
+                        if (row.litho && !isNaN(row.from) && !isNaN(row.to)) {
+                            const length = row.to - row.from;
+                            const litho = row.litho.toString().trim();
+                            uniqueLithologies.add(litho);
+                            
+                            if (!lithologyLengths[litho]) {
+                                lithologyLengths[litho] = 0;
+                            }
+                            lithologyLengths[litho] += length;
+                        }
+                    });
+
+                    const sortedLithologies = Object.entries(lithologyLengths)
+                        .sort(([,a], [,b]) => b - a)
+                        .slice(0, 5);
+
+                    const lithologyStatsData = [
+                        ['STATISTIQUES LITHOLOGIE'],
+                        [''],
+                        ['Métrique', 'Valeur'],
+                        ['HoleID Uniques', uniqueHoles],
+                        ['Nombre de lithologies uniques', uniqueLithologies.size],
+                        ['Nombre total d\'échantillons', lithologyData.length],
+                        [''],
+                        ['TOP 5 LITHOLOGIES PAR LONGUEUR TOTALE'],
+                        ['Lithologie', 'Longueur totale (m)']
+                    ];
+
+                    sortedLithologies.forEach(([litho, length]) => {
+                        lithologyStatsData.push([litho, length]);
+                    });
+
+                    const lithologyWs = XLSX.utils.aoa_to_sheet(lithologyStatsData);
+                    XLSX.utils.book_append_sheet(wb, lithologyWs, 'Stats Lithologie');
+                }
+
+                // Statistiques détaillées pour Assays
+                if (assaysData) {
+                    const teneurs = assaysData.map(row => row.teneur).filter(val => !isNaN(val) && val !== null);
+                    if (teneurs.length > 0) {
+                        const stats = calculateAdvancedStats(teneurs);
+                        const uniqueHoles = [...new Set(assaysData.map(row => row.holeid).filter(id => id))].length;
+
+                        const assaysStatsData = [
+                            ['STATISTIQUES ASSAYS'],
+                            [''],
+                            ['Métrique', 'Valeur'],
+                            ['HoleID Uniques', uniqueHoles],
+                            ['Nombre d\'échantillons', stats.count],
+                            ['Minimum', stats.min],
+                            ['Maximum', stats.max],
+                            ['Moyenne', stats.mean],
+                            ['Médiane', stats.median],
+                            ['Variance', stats.variance],
+                            ['Écart Type', stats.stdDev],
+                            ['Coefficient de Variation', stats.cv],
+                            ['Percentile 90', stats.p90],
+                            ['Percentile 95', stats.p95],
+                            ['Percentile 98', stats.p98]
+                        ];
+
+                        const assaysWs = XLSX.utils.aoa_to_sheet(assaysStatsData);
+                        XLSX.utils.book_append_sheet(wb, assaysWs, 'Stats Assays');
+                    }
+                }
+
+                // Statistiques détaillées pour Densité
+                if (densityData) {
+                    const densities = densityData.map(row => row.density).filter(val => !isNaN(val) && val !== null);
+                    if (densities.length > 0) {
+                        const stats = calculateAdvancedStats(densities);
+                        const uniqueHoles = [...new Set(densityData.map(row => row.holeid).filter(id => id))].length;
+
+                        const densityStatsData = [
+                            ['STATISTIQUES DENSITÉ'],
+                            [''],
+                            ['Métrique', 'Valeur'],
+                            ['HoleID Uniques', uniqueHoles],
+                            ['Nombre d\'échantillons', stats.count],
+                            ['Minimum', stats.min],
+                            ['Maximum', stats.max],
+                            ['Moyenne', stats.mean],
+                            ['Médiane', stats.median],
+                            ['Variance', stats.variance],
+                            ['Écart Type', stats.stdDev],
+                            ['Coefficient de Variation', stats.cv],
+                            ['Percentile 90', stats.p90],
+                            ['Percentile 95', stats.p95],
+                            ['Percentile 98', stats.p98]
+                        ];
+
+                        const densityWs = XLSX.utils.aoa_to_sheet(densityStatsData);
+                        XLSX.utils.book_append_sheet(wb, densityWs, 'Stats Densité');
+                    }
+                }
+
+                // Statistiques Collar
+                if (collarData) {
+                    const uniqueHoles = [...new Set(collarData.map(row => row.holeid).filter(id => id))].length;
+                    const easting = collarData.map(row => row.easting).filter(val => !isNaN(val) && val !== null);
+                    const northing = collarData.map(row => row.northing).filter(val => !isNaN(val) && val !== null);
+                    const elevation = collarData.map(row => row.elevation).filter(val => !isNaN(val) && val !== null);
+                    const totalDepth = collarData.map(row => row.totaldepth).filter(val => !isNaN(val) && val !== null);
+
+                    if (easting.length > 0 && northing.length > 0) {
+                        const eastingStats = calculateStats(easting);
+                        const northingStats = calculateStats(northing);
+                        const elevationStats = calculateStats(elevation);
+                        const totalDepthStats = calculateStats(totalDepth);
+
+                        const collarStatsData = [
+                            ['STATISTIQUES COLLAR'],
+                            [''],
+                            ['HoleID Uniques', uniqueHoles],
+                            ['Somme TotalDepth', totalDepth.reduce((sum, val) => sum + val, 0)],
+                            [''],
+                            ['Métrique', 'Easting', 'Northing', 'Elevation', 'TotalDepth'],
+                            ['Minimum', eastingStats.min, northingStats.min, elevationStats.min, totalDepthStats.min],
+                            ['Maximum', eastingStats.max, northingStats.max, elevationStats.max, totalDepthStats.max],
+                            ['Étendue', eastingStats.max - eastingStats.min, northingStats.max - northingStats.min, elevationStats.max - elevationStats.min, totalDepthStats.max - totalDepthStats.min]
+                        ];
+
+                        const collarWs = XLSX.utils.aoa_to_sheet(collarStatsData);
+                        XLSX.utils.book_append_sheet(wb, collarWs, 'Stats Collar');
+                    }
+                }
+
+                // Données brutes
+                if (lithologyData && lithologyData.length > 0) {
+                    const lithoExportData = [['HoleID', 'From', 'To', 'Litho']];
+                    lithologyData.forEach(row => {
+                        lithoExportData.push([row.holeid || '', row.from || '', row.to || '', row.litho || '']);
+                    });
+                    const lithoWs = XLSX.utils.aoa_to_sheet(lithoExportData);
+                    XLSX.utils.book_append_sheet(wb, lithoWs, 'Données Lithologie');
+                }
+
+                if (assaysData && assaysData.length > 0) {
+                    const assaysExportData = [['HoleID', 'From', 'To', 'Teneur']];
+                    assaysData.forEach(row => {
+                        assaysExportData.push([row.holeid || '', row.from || '', row.to || '', row.teneur || '']);
+                    });
+                    const assaysWs = XLSX.utils.aoa_to_sheet(assaysExportData);
+                    XLSX.utils.book_append_sheet(wb, assaysWs, 'Données Assays');
+                }
+
+                if (collarData && collarData.length > 0) {
+                    const collarExportData = [['HoleID', 'Easting', 'Northing', 'Elevation', 'TotalDepth']];
+                    collarData.forEach(row => {
+                        collarExportData.push([row.holeid || '', row.easting || '', row.northing || '', row.elevation || '', row.totaldepth || '']);
+                    });
+                    const collarWs = XLSX.utils.aoa_to_sheet(collarExportData);
+                    XLSX.utils.book_append_sheet(wb, collarWs, 'Données Collar');
+                }
+
+                if (surveyData && surveyData.length > 0) {
+                    const surveyExportData = [['HoleID', 'Depth', 'Dip', 'Azimuth']];
+                    surveyData.forEach(row => {
+                        surveyExportData.push([row.holeid || '', row.depth || '', row.dip || '', row.azimuth || '']);
+                    });
+                    const surveyWs = XLSX.utils.aoa_to_sheet(surveyExportData);
+                    XLSX.utils.book_append_sheet(wb, surveyWs, 'Données Survey');
+                }
+
+                if (densityData && densityData.length > 0) {
+                    const densityExportData = [['HoleID', 'From', 'To', 'Density']];
+                    densityData.forEach(row => {
+                        densityExportData.push([row.holeid || '', row.from || '', row.to || '', row.density || '']);
+                    });
+                    const densityWs = XLSX.utils.aoa_to_sheet(densityExportData);
+                    XLSX.utils.book_append_sheet(wb, densityWs, 'Données Densité');
+                }
+
+                // Sauvegarder le fichier
+                const fileName = `GeoDataAnalyst_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                
+                showMessage('Export Excel terminé avec succès!', 'success');
+            } catch (error) {
+                console.error('Erreur lors de l\'export:', error);
+                showMessage('Erreur lors de l\'export Excel: ' + error.message, 'error');
+            }
+        }
+
+        function showMessage(message, type) {
+            // Supprimer les anciens messages
+            const existingMessages = document.querySelectorAll('.error, .success');
+            existingMessages.forEach(msg => msg.remove());
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type;
+            messageDiv.textContent = message;
+            
+            // Ajouter le message au début du main-content
+            const mainContent = document.querySelector('.main-content');
+            mainContent.insertBefore(messageDiv, mainContent.firstChild);
+            
+            // Faire défiler vers le haut pour voir le message
+            messageDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            
+            // Supprimer automatiquement après 5 secondes
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.remove();
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
